@@ -1,0 +1,177 @@
+import numpy as np 
+import pandas as pd 
+from tqdm import tqdm 
+import seaborn as sns
+import torch 
+import torch.nn as nn
+import matplotlib.pyplot as plt
+
+df = pd.read_csv('/kaggle/input/iris/Iris.csv')
+df.info()
+
+df.drop('Id', axis='columns', inplace=True)
+
+df.isnull()
+
+df['Species'].value_counts()
+
+fig = df[df.Species == 'Iris-setosa'].plot(kind='scatter', x='SepalLengthCm', y='SepalWidthCm', 
+                                           color='orange', label='Setosa')
+df[df.Species == 'Iris-versicolor'].plot(kind='scatter', x='SepalLengthCm', y='SepalWidthCm', 
+                                        color='blue', label='versicolor', ax=fig)
+df[df.Species == 'Iris-virginica'].plot(kind='scatter', x='SepalLengthCm', y='SepalWidthCm',
+                                       color='green', label='virginica', ax=fig)
+fig.set_xlabel('Sepal Length')
+fig.set_ylabel('Sepal Width')
+fig.set_title('Sepal Length VS Width')
+fig = plt.gcf()
+fig.set_size_inches(10, 6)
+plt.show()
+
+fig = df[df.Species=='Iris-setosa'].plot.scatter(x='PetalLengthCm',y='PetalWidthCm',color='orange', label='Setosa')
+df[df.Species=='Iris-versicolor'].plot.scatter(x='PetalLengthCm',y='PetalWidthCm',color='blue', label='versicolor',ax=fig)
+df[df.Species=='Iris-virginica'].plot.scatter(x='PetalLengthCm',y='PetalWidthCm',color='green', label='virginica', ax=fig)
+fig.set_xlabel("Petal Length")
+fig.set_ylabel("Petal Width")
+fig.set_title(" Petal Length VS Width")
+fig=plt.gcf()
+fig.set_size_inches(10,6)
+plt.show()
+
+sns.pairplot(data=df, hue='Species')
+
+df.hist(edgecolor='black', linewidth=1.2)
+fig = plt.gcf()
+fig.set_size_inches(12, 6)
+plt.show()
+
+plt.figure(figsize=(15,10))
+plt.subplot(2,2,1)
+sns.violinplot(x='Species',y='PetalLengthCm',data=df)
+plt.subplot(2,2,2)
+sns.violinplot(x='Species',y='PetalWidthCm',data=df)
+plt.subplot(2,2,3)
+sns.violinplot(x='Species',y='SepalLengthCm',data=df)
+plt.subplot(2,2,4)
+sns.violinplot(x='Species',y='SepalWidthCm',data=df)
+
+from sklearn.model_selection import train_test_split, GridSearchCV, ShuffleSplit
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, f1_score, fbeta_score, precision_recall_curve, auc
+from sklearn import svm 
+from sklearn.svm import SVC
+from sklearn import metrics
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import balanced_accuracy_score, confusion_matrix, accuracy_score, classification_report
+from sklearn.preprocessing import StandardScaler
+
+# We have to encode Species to be numerical values
+le = LabelEncoder()
+df['Species'] = le.fit_transform(df['Species'])
+df.shape
+
+plt.figure(figsize=(10, 4))
+sns.heatmap(df.corr(), annot=True, cmap='crest')
+plt.show()
+
+X = df.drop('Species', axis='columns')
+y = df['Species']
+
+def training_model(model):
+    """ 
+    Train a classification model and print evaluation metrics
+    
+    Parameters: 
+    - model: The classification model to train
+    """
+    
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    # Accuracy
+    accuracy = accuracy_score(y_test, y_pred)
+    print('-----------------------------------')
+    print(f'Accuracy: {accuracy * 100:.2f}%')
+    print('-----------------------------------')
+
+    fbeta = fbeta_score(y_test, y_pred, average='weighted', beta=1)
+    print(f'F_Beta score: {fbeta:.2f}')
+    print('-----------------------------------')
+
+    # F1 Score
+    f1 = f1_score(y_test, y_pred, average='weighted')
+    print(f'Weighted F1-Score: {f1:.2f}')
+    print('-----------------------------------')
+
+    # Classification Report 
+    report = classification_report(y_test, y_pred)
+    print('Classification Report:')
+    print('----------------------')
+    print(report)
+    
+    return model
+
+model = svm.SVC()
+svc_model = training_model(model)
+
+# Save Model 
+torch.save(svc_model, 'SVC_Model.pth')
+
+model = LogisticRegression(max_iter=1000)
+LR_model = training_model(model)
+
+# Save model
+torch.save(LR_model, 'Logistic_Regression_Model.pth')
+
+model = DecisionTreeClassifier(random_state=42, criterion='gini')
+decision_tree_model = training_model(model)
+
+torch.save(decision_tree_model, 'Decision_Tree_Model.pth')
+
+model=KNeighborsClassifier()
+KN_model = training_model(model)
+
+torch.save(KN_model, 'KN_Model.pth')
+
+from sklearn.ensemble import AdaBoostClassifier
+
+svc_model = torch.load('SVC_Model.pth')
+dt_model = torch.load('Decision_Tree_Model.pth')
+lr_model = torch.load('Logistic_Regression_Model.pth')
+
+svc_adaboost = AdaBoostClassifier(base_estimator=svc_model, n_estimators=50, algorithm='SAMME', random_state=42)
+dt_adaboost = AdaBoostClassifier(base_estimator=dt_model, n_estimators=50, algorithm='SAMME', random_state=42)
+lr_adaboost = AdaBoostClassifier(base_estimator=lr_model, n_estimators=50, algorithm='SAMME', random_state=42)
+
+svc_adaboost.fit(X_train, y_train)
+dt_adaboost.fit(X_train, y_train)
+lr_adaboost.fit(X_train, y_train)
+
+svc_predictions = svc_adaboost.predict(X_test)
+dt_predictions = dt_adaboost.predict(X_test)
+lr_predictions = lr_adaboost.predict(X_test)
+
+ensemble_predictions = []
+
+for i in tqdm(range(len(X_test))):
+    
+    majority_vote = max(set([svc_predictions[i], dt_predictions[i], lr_predictions[i]]), key = [svc_predictions[i], dt_predictions[i], lr_predictions[i]].count)
+    ensemble_predictions.append(majority_vote)
+    
+
+# Calculate accuracy
+accuracy = accuracy_score(y_test, ensemble_predictions)
+print(f'Ensemble Accuracy: {accuracy * 100:.2f}%')
+
+# Generate and display classification report
+report = classification_report(y_test, ensemble_predictions)
+print('Classification Report:')
+print(report)
+
+# Generate and display confusion matrix
+conf_matrix = confusion_matrix(y_test, ensemble_predictions)
+print('Confusion Matrix:')
+print(conf_matrix)
