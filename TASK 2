@@ -1,0 +1,59 @@
+import pandas as pd
+import numpy as np
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.naive_bayes import GaussianNB
+import math
+
+# Reading the train csv file
+d = pd.read_csv("/kaggle/input/titanic/train.csv")
+d.head()
+
+d.drop(['PassengerId','Name','SibSp','Parch','Ticket','Cabin','Embarked'],axis='columns',inplace=True)
+d.head()
+
+d['Age'].isna().any()
+
+d['Age'] = d['Age'].fillna(math.floor(d['Age'].mean()))
+d
+
+x_train = d[['Pclass', 'Sex', 'Age', 'Fare']]
+y_train = d[['Survived']].values
+
+dummies = pd.get_dummies(x_train.Sex)
+dummies.head(3)
+x_train = pd.concat([x_train,dummies],axis='columns')
+x_train.head(3)
+x_train.drop(['Sex','male'],axis='columns',inplace=True)
+x_train.head(3)
+
+ohe = OneHotEncoder()
+ct = ColumnTransformer([('Pclass', ohe, [0])], remainder='passthrough')
+x_train = ct.fit_transform(x_train)
+# Dropping
+x_train = x_train[:,1:]
+x_train
+
+model = GaussianNB()
+model
+model.fit(x_train, y_train)
+
+test_df = pd.read_csv('/kaggle/input/titanic/test.csv')
+test_df['Age'].isna().any()
+test_df['Fare'].isna().any()
+test_df['Age'] = test_df['Age'].fillna(math.floor(test_df['Age'].mean()))
+test_df['Fare'] = test_df['Fare'].fillna(math.floor(test_df['Fare'].mean()))
+x_test = test_df[['Pclass', 'Sex', 'Age', 'Fare']]
+dummies = pd.get_dummies(x_test.Sex)
+x_test = pd.concat([x_test,dummies],axis='columns')
+x_test.drop(['Sex','male'],axis='columns',inplace=True)
+x_test = ct.fit_transform(x_test)
+x_test = x_test[:, 1:]
+
+y_predicted = model.predict(x_test)
+
+predicted_df = pd.DataFrame(test_df['PassengerId'], columns=['PassengerId'])
+predicted_df['Survived'] = y_predicted
+predicted_df.to_csv('/kaggle/working/submission.csv', index=False)
+
