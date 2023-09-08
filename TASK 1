@@ -1,1 +1,143 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as exp
+from sklearn.preprocessing import RobustScaler,StandardScaler,LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+
+df = pd.read_csv('/kaggle/input/titanic/train.csv')
+test = pd.read_csv('/kaggle/input/titanic/test.csv')
+df
+
+test 
+
+df.info()
+
+df.describe().style.background_gradient(cmap = 'Blues')
+
+sns.pairplot(df,hue = 'Survived',palette='bright')
+
+df.isnull().sum()
+
+test.isnull().sum()
+
+df.dropna()
+
+df.dropna(thresh= 11)
+
+for i in df.columns:
+    if df[i].isnull().any():
+        nullperc = df[i].isnull().sum()/df[i].shape[0] * 100
+        print(f'Null percentage of {i} is {round(nullperc,ndigits=3)}')
+
+df.drop('Cabin',axis = 1,inplace=True)
+test.drop('Cabin',axis = 1,inplace=True)
+
+sns.displot(x =df['Age'],element = 'step',color = 'aqua')
+
+df['Age'].fillna(df['Age'].median()).plot(kind='hist',color = 'red')
+
+df['Age'].fillna(df['Age'].median(),inplace=True)
+test['Age'].fillna(df['Age'].median(),inplace=True)
+
+df.dropna(inplace=True)
+test.dropna(inplace=True)
+
+df.isnull().sum()
+
+test.isnull().sum()
+
+plt.pie(df['Survived'].value_counts(),labels=['Died','Survived'],autopct='%1.1f%%',colors=['red','blue'])
+
+df.groupby(['Survived']).mean()['Age'].reset_index()
+
+exp.histogram(df,x = 'Age',color = 'Survived',color_discrete_sequence=['gold','navy'])
+
+df['Sex'].value_counts()
+
+grouped = df.groupby(['Survived','Sex']).size().reset_index(name='value')
+grouped
+
+fig = exp.sunburst(
+    grouped,
+    path=['Survived','Sex'],
+    values='value'
+)
+fig.update_traces(textinfo='label+percent parent')
+
+df['SibSp'].value_counts()
+
+df.groupby(['Survived','SibSp']).size().unstack()
+
+sns.countplot(x = df['SibSp'],hue = df['Survived'],palette = 'Paired')
+
+df['Parch'].value_counts()
+
+grouped = df.groupby(['Parch','Survived']).size().unstack()
+grouped
+
+grouped.plot(kind='bar',stacked=True,color=['royalblue','springgreen'])
+
+df['Pclass'].value_counts()
+
+grouped = df.groupby(['Pclass','Survived']).size()
+result_df = grouped.reset_index(name='Count')
+pivot_df = result_df.pivot(index='Survived', columns='Pclass', values='Count')
+pivot_df
+
+
+Pclass	1	2	3
+Survived			
+0	80	97	372
+1	134	87	119
+for column in pivot_df.columns:
+    labels = pivot_df.index
+    values = pivot_df[column].values
+    plt.figure()
+    plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140,colors=sns.color_palette('Accent'))
+    plt.axis('equal')
+    plt.title(f'Ratio of survived of pclass {column}')
+plt.show()
+
+df['Embarked'].value_counts()
+
+exp.histogram(x =df['Embarked'],color=df['Survived'],color_discrete_sequence={0:'gold',1:'crimson'})
+
+sns.kdeplot(x =df['Fare'],hue=df['Survived'],palette='Set2')
+
+df.drop('Name',axis = 1,inplace=True)
+test.drop('Name',axis = 1,inplace=True)
+
+s = (df.dtypes == 'object')
+cat_col = list(s[s].index)
+cat_col
+
+train = df.copy()
+for i in cat_col:
+    lb = LabelEncoder()
+    train[i] = lb.fit_transform(train[i])
+train
+
+for i in cat_col:
+    lb = LabelEncoder()
+    test[i] = lb.fit_transform(test[i])
+test
+
+x ,y = train.drop('Survived',axis=1),train['Survived']
+
+x_train,x_test,y_train,y_test = train_test_split(x,y,test_size=0.25,random_state=42)
+model = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=1)
+model.fit(x_train, y_train)
+model.score(x_train,y_train)
+
+model.score(x_test,y_test)
+
+predictions = model.predict(test)
+predictions
+
+output = pd.DataFrame({'PassengerId': test.PassengerId, 'Survived': predictions})
+output.to_csv('submission.csv', index=False)
+
 
